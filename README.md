@@ -26,7 +26,7 @@ Everything runs on your machine. Your API key never leaves your browser/server.
 ### Option A: One command (recommended)
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/local-chat-ui.git
+git clone https://github.com/mayolov/local-chat-ui.git
 cd local-chat-ui
 ./start.sh
 ```
@@ -36,7 +36,7 @@ Open **http://localhost:5173** — the settings panel opens automatically on fir
 ### Option B: Manual
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/local-chat-ui.git
+git clone https://github.com/mayolov/local-chat-ui.git
 cd local-chat-ui
 npm install
 npm run dev
@@ -45,7 +45,7 @@ npm run dev
 ### Option C: Docker
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/local-chat-ui.git
+git clone https://github.com/mayolov/local-chat-ui.git
 cd local-chat-ui
 docker compose up --build
 ```
