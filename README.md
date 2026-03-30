@@ -26,8 +26,8 @@ Everything runs on your machine. Your API key never leaves your browser/server.
 ### Option A: One command (recommended)
 
 ```bash
-git clone https://github.com/mayolov/local-chat-ui.git
-cd local-chat-ui
+git clone https://github.com/mayolov/chat_ui.git
+cd chat_ui
 ./start.sh
 ```
 
@@ -36,8 +36,8 @@ Open **http://localhost:5173** — the settings panel opens automatically on fir
 ### Option B: Manual
 
 ```bash
-git clone https://github.com/mayolov/local-chat-ui.git
-cd local-chat-ui
+git clone https://github.com/mayolov/chat_ui.git
+cd chat_ui
 npm install
 npm run dev
 ```
@@ -45,8 +45,8 @@ npm run dev
 ### Option C: Docker
 
 ```bash
-git clone https://github.com/mayolov/local-chat-ui.git
-cd local-chat-ui
+git clone https://github.com/mayolov/chat_ui.git
+cd chat_ui
 docker compose up --build
 ```
 
@@ -145,7 +145,7 @@ The artifact panel supports **live preview**, **source view**, **copy**, **downl
 ## Project Structure
 
 ```
-local-chat-ui/
+chat_ui/
 ├── server.js                 # Express backend (API proxy + file upload)
 ├── src/
 │   ├── App.jsx               # Main app with state management
