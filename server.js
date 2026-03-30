@@ -67,30 +67,47 @@ app.post('/api/upload', upload.array('files', 10), (req, res) => {
   }
 });
 
+// Build the chat completions URL from a user-provided base URL.
+// Accepts any of:
+//   http://host:port                -> http://host:port/v1/chat/completions
+//   http://host:port/v1             -> http://host:port/v1/chat/completions
+//   http://host:port/v1/            -> http://host:port/v1/chat/completions
+//   http://host:port/v1/chat/completions  -> unchanged
+//   http://host:port/anything/else  -> http://host:port/anything/else/chat/completions
+function buildChatUrl(apiBase) {
+  let url = apiBase.replace(/\/+$/, '');
+  if (url.endsWith('/chat/completions')) return url;
+  // If it looks like it already has a versioned path (e.g. /v1, /v2), just append
+  if (/\/v\d+$/.test(url)) return url + '/chat/completions';
+  // Otherwise append /v1/chat/completions
+  return url + '/v1/chat/completions';
+}
+
+function buildModelsUrl(apiBase) {
+  let url = apiBase.replace(/\/+$/, '');
+  if (url.endsWith('/models')) return url;
+  if (/\/v\d+$/.test(url)) return url + '/models';
+  return url + '/v1/models';
+}
+
 // Chat completion proxy (streaming)
 app.post('/api/chat', async (req, res) => {
   const { messages, apiKey, apiBase, model, temperature, maxTokens } = req.body;
 
-  if (!apiKey || !apiBase || !model) {
-    return res.status(400).json({ error: 'Missing apiKey, apiBase, or model' });
+  if (!apiBase || !model) {
+    return res.status(400).json({ error: 'Missing apiBase or model' });
   }
 
-  // Normalize the base URL
-  let baseUrl = apiBase.replace(/\/+$/, '');
-  if (!baseUrl.endsWith('/chat/completions')) {
-    if (!baseUrl.endsWith('/v1')) {
-      baseUrl += '/v1';
-    }
-    baseUrl += '/chat/completions';
-  }
+  const chatUrl = buildChatUrl(apiBase);
+  console.log(`[chat] POST ${chatUrl} model=${model}`);
+
+  const headers = { 'Content-Type': 'application/json' };
+  if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
 
   try {
-    const response = await fetch(baseUrl, {
+    const response = await fetch(chatUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers,
       body: JSON.stringify({
         model,
         messages,
@@ -102,7 +119,7 @@ app.post('/api/chat', async (req, res) => {
 
     if (!response.ok) {
       const errText = await response.text();
-      console.error('API error:', response.status, errText);
+      console.error(`[chat] ERROR ${response.status}:`, errText);
       return res.status(response.status).json({
         error: `API returned ${response.status}`,
         details: errText,
@@ -139,25 +156,20 @@ app.post('/api/chat', async (req, res) => {
 app.post('/api/chat/sync', async (req, res) => {
   const { messages, apiKey, apiBase, model, temperature, maxTokens } = req.body;
 
-  if (!apiKey || !apiBase || !model) {
-    return res.status(400).json({ error: 'Missing apiKey, apiBase, or model' });
+  if (!apiBase || !model) {
+    return res.status(400).json({ error: 'Missing apiBase or model' });
   }
 
-  let baseUrl = apiBase.replace(/\/+$/, '');
-  if (!baseUrl.endsWith('/chat/completions')) {
-    if (!baseUrl.endsWith('/v1')) {
-      baseUrl += '/v1';
-    }
-    baseUrl += '/chat/completions';
-  }
+  const chatUrl = buildChatUrl(apiBase);
+  console.log(`[chat/sync] POST ${chatUrl} model=${model}`);
+
+  const headers = { 'Content-Type': 'application/json' };
+  if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
 
   try {
-    const response = await fetch(baseUrl, {
+    const response = await fetch(chatUrl, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${apiKey}`,
-      },
+      headers,
       body: JSON.stringify({
         model,
         messages,
@@ -187,20 +199,18 @@ app.post('/api/chat/sync', async (req, res) => {
 app.post('/api/models', async (req, res) => {
   const { apiKey, apiBase } = req.body;
 
-  if (!apiKey || !apiBase) {
-    return res.status(400).json({ error: 'Missing apiKey or apiBase' });
+  if (!apiBase) {
+    return res.status(400).json({ error: 'Missing apiBase' });
   }
 
-  let baseUrl = apiBase.replace(/\/+$/, '');
-  if (!baseUrl.endsWith('/v1')) {
-    baseUrl += '/v1';
-  }
-  baseUrl += '/models';
+  const modelsUrl = buildModelsUrl(apiBase);
+  console.log(`[models] GET ${modelsUrl}`);
+
+  const headers = {};
+  if (apiKey) headers['Authorization'] = `Bearer ${apiKey}`;
 
   try {
-    const response = await fetch(baseUrl, {
-      headers: { Authorization: `Bearer ${apiKey}` },
-    });
+    const response = await fetch(modelsUrl, { headers });
 
     if (!response.ok) {
       return res.status(response.status).json({ error: 'Failed to fetch models' });

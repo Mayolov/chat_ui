@@ -8,8 +8,8 @@ export function loadSettings() {
   } catch {}
   return {
     apiKey: '',
-    apiBase: 'https://integrate.api.nvidia.com',
-    model: 'nvidia/llama-3.1-nemotron-70b-instruct',
+    apiBase: '',
+    model: 'NVIDIA-Nemotron-3-Super-120B-A12B-FP8',
     temperature: 0.7,
     maxTokens: 4096,
     systemPrompt: 'You are a helpful assistant. When asked to create visual content, web pages, or interactive applications, wrap the code in an artifact block using ```artifact:type\n...code...\n``` where type is one of: html, react, svg, mermaid. For example, use ```artifact:html for complete HTML pages with embedded CSS/JS.',

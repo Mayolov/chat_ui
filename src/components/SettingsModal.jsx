@@ -3,6 +3,12 @@ import { X, RefreshCw, Eye, EyeOff } from 'lucide-react';
 
 const PRESETS = [
   {
+    name: 'LiteLLM Proxy',
+    apiBase: '',
+    model: 'NVIDIA-Nemotron-3-Super-120B-A12B-FP8',
+    placeholder: 'http://your-litellm-host:4000',
+  },
+  {
     name: 'NVIDIA Nemotron',
     apiBase: 'https://integrate.api.nvidia.com',
     model: 'nvidia/llama-3.1-nemotron-70b-instruct',
