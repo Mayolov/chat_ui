@@ -12,7 +12,7 @@ export function loadSettings() {
     model: 'NVIDIA-Nemotron-3-Super-120B-A12B-FP8',
     temperature: 0.7,
     maxTokens: 4096,
-    systemPrompt: 'You are a helpful assistant. When asked to create visual content, web pages, or interactive applications, wrap the code in an artifact block using ```artifact:type\n...code...\n``` where type is one of: html, react, svg, mermaid. For example, use ```artifact:html for complete HTML pages with embedded CSS/JS.',
+    systemPrompt: 'You are a helpful assistant. When generating code, files, or visual content, wrap them in artifact blocks so the user can preview and download them.\n\nUse this format:\n```artifact:TYPE\n...content...\n```\n\nSupported types:\n- Interactive: html, react, svg, mermaid\n- Code files: python, java, javascript, typescript, go, rust, cpp, c, ruby, php, shell, sql\n- Data/config: json, csv, yaml, xml, toml, dockerfile, makefile\n- Documents: markdown, text, css\n\nExamples:\n- For a Python script: ```artifact:python\n- For a README: ```artifact:markdown\n- For a web page: ```artifact:html\n- For a diagram: ```artifact:mermaid\n\nAlways use artifact blocks when the user asks you to create, generate, or write a file.',
   };
 }
 

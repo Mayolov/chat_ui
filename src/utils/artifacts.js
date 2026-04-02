@@ -1,58 +1,136 @@
 // Parse artifact blocks from assistant messages
-// Supports: ```artifact:html, ```artifact:react, ```artifact:svg, ```artifact:mermaid
-// Also auto-detects full HTML documents and standalone SVG
+// Supports ```artifact:type blocks for interactive previews and downloadable files
+
+const ARTIFACT_TYPES = [
+  // Interactive / renderable
+  'html', 'react', 'svg', 'mermaid',
+  // Downloadable code / file types
+  'python', 'java', 'javascript', 'typescript', 'markdown',
+  'json', 'csv', 'yaml', 'shell', 'sql', 'text',
+  'go', 'rust', 'cpp', 'c', 'ruby', 'php',
+  'css', 'xml', 'toml', 'dockerfile', 'makefile',
+  'code',
+];
+
+const TYPE_REGEX = new RegExp(
+  '```artifact:(' + ARTIFACT_TYPES.join('|') + ')\\n([\\s\\S]*?)```',
+  'g'
+);
+
+const TYPE_LABELS = {
+  html: 'HTML',
+  react: 'React',
+  svg: 'SVG',
+  mermaid: 'Diagram',
+  python: 'Python',
+  java: 'Java',
+  javascript: 'JavaScript',
+  typescript: 'TypeScript',
+  markdown: 'Markdown',
+  json: 'JSON',
+  csv: 'CSV',
+  yaml: 'YAML',
+  shell: 'Shell Script',
+  sql: 'SQL',
+  text: 'Text',
+  go: 'Go',
+  rust: 'Rust',
+  cpp: 'C++',
+  c: 'C',
+  ruby: 'Ruby',
+  php: 'PHP',
+  css: 'CSS',
+  xml: 'XML',
+  toml: 'TOML',
+  dockerfile: 'Dockerfile',
+  makefile: 'Makefile',
+  code: 'Code',
+};
+
+const FILE_EXTENSIONS = {
+  html: 'html',
+  react: 'jsx',
+  svg: 'svg',
+  mermaid: 'mmd',
+  python: 'py',
+  java: 'java',
+  javascript: 'js',
+  typescript: 'ts',
+  markdown: 'md',
+  json: 'json',
+  csv: 'csv',
+  yaml: 'yaml',
+  shell: 'sh',
+  sql: 'sql',
+  text: 'txt',
+  go: 'go',
+  rust: 'rs',
+  cpp: 'cpp',
+  c: 'c',
+  ruby: 'rb',
+  php: 'php',
+  css: 'css',
+  xml: 'xml',
+  toml: 'toml',
+  dockerfile: 'Dockerfile',
+  makefile: 'Makefile',
+  code: 'txt',
+};
+
+// Types that can be rendered in an iframe
+const RENDERABLE_TYPES = new Set(['html', 'react', 'svg', 'mermaid']);
+
+export function getTypeLabel(type) {
+  return TYPE_LABELS[type] || type;
+}
+
+export function getFileExtension(type) {
+  return FILE_EXTENSIONS[type] || 'txt';
+}
+
+export function isRenderable(type) {
+  return RENDERABLE_TYPES.has(type);
+}
 
 export function parseArtifacts(text) {
   const artifacts = [];
   const parts = [];
   let lastIndex = 0;
 
-  // Match ```artifact:type\n...``` blocks
-  const artifactRegex = /```artifact:(html|react|svg|mermaid|code)\n([\s\S]*?)```/g;
+  // Reset regex state
+  TYPE_REGEX.lastIndex = 0;
   let match;
 
-  while ((match = artifactRegex.exec(text)) !== null) {
-    // Text before this artifact
+  while ((match = TYPE_REGEX.exec(text)) !== null) {
     if (match.index > lastIndex) {
       parts.push({ type: 'text', content: text.slice(lastIndex, match.index) });
     }
 
+    const artifactType = match[1];
+    const content = match[2].trim();
+
     const artifact = {
       id: `artifact-${Date.now()}-${artifacts.length}`,
-      type: match[1],
-      content: match[2].trim(),
+      type: artifactType,
+      content,
+      title: generateTitle(artifactType, content),
     };
-
-    // Generate title from content
-    if (artifact.type === 'html') {
-      const titleMatch = artifact.content.match(/<title>(.*?)<\/title>/i);
-      artifact.title = titleMatch ? titleMatch[1] : 'HTML Document';
-    } else if (artifact.type === 'react') {
-      artifact.title = 'React Component';
-    } else if (artifact.type === 'svg') {
-      artifact.title = 'SVG Graphic';
-    } else if (artifact.type === 'mermaid') {
-      artifact.title = 'Diagram';
-    } else {
-      artifact.title = 'Code';
-    }
 
     artifacts.push(artifact);
     parts.push({ type: 'artifact', artifactIndex: artifacts.length - 1 });
     lastIndex = match.index + match[0].length;
   }
 
-  // If no explicit artifacts found, check for implicit HTML/SVG
+  // If no explicit artifacts found, check for implicit HTML
   if (artifacts.length === 0) {
     const htmlMatch = text.match(/```html\n([\s\S]*?)```/);
     if (htmlMatch && (htmlMatch[1].includes('<!DOCTYPE') || htmlMatch[1].includes('<html'))) {
       const content = htmlMatch[1].trim();
-      const titleMatch = content.match(/<title>(.*?)<\/title>/i);
       artifacts.push({
         id: `artifact-${Date.now()}-0`,
         type: 'html',
         content,
-        title: titleMatch ? titleMatch[1] : 'HTML Document',
+        title: generateTitle('html', content),
       });
       const beforeIdx = htmlMatch.index;
       const afterIdx = htmlMatch.index + htmlMatch[0].length;
@@ -63,17 +141,43 @@ export function parseArtifacts(text) {
     }
   }
 
-  // Remaining text
   if (lastIndex < text.length) {
     parts.push({ type: 'text', content: text.slice(lastIndex) });
   }
 
-  // If no artifacts found, just return the whole text
   if (artifacts.length === 0) {
     return { artifacts: [], parts: [{ type: 'text', content: text }] };
   }
 
   return { artifacts, parts };
+}
+
+function generateTitle(type, content) {
+  if (type === 'html') {
+    const titleMatch = content.match(/<title>(.*?)<\/title>/i);
+    return titleMatch ? titleMatch[1] : 'HTML Document';
+  }
+  // Try to extract a filename or class name from content
+  if (type === 'python') {
+    const classMatch = content.match(/^class\s+(\w+)/m);
+    if (classMatch) return `${classMatch[1]}.py`;
+    const defMatch = content.match(/^def\s+(\w+)/m);
+    if (defMatch) return `${defMatch[1]}.py`;
+  }
+  if (type === 'java') {
+    const classMatch = content.match(/class\s+(\w+)/);
+    if (classMatch) return `${classMatch[1]}.java`;
+  }
+  if (type === 'javascript' || type === 'typescript') {
+    const fnMatch = content.match(/(?:function|const|class)\s+(\w+)/);
+    if (fnMatch) return `${fnMatch[1]}.${type === 'typescript' ? 'ts' : 'js'}`;
+  }
+  if (type === 'markdown') {
+    const h1 = content.match(/^#\s+(.+)/m);
+    if (h1) return h1[1].slice(0, 40);
+    return 'README.md';
+  }
+  return TYPE_LABELS[type] || 'File';
 }
 
 export function renderArtifactHtml(artifact) {
@@ -121,5 +225,28 @@ export function renderArtifactHtml(artifact) {
 </html>`;
   }
 
-  return `<pre style="padding:1rem;font-family:monospace;white-space:pre-wrap">${artifact.content}</pre>`;
+  // For all code/file types — render as syntax-highlighted code in an HTML page
+  const escaped = artifact.content
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;');
+
+  const langClass = artifact.type === 'code' ? '' : `language-${artifact.type}`;
+
+  return `<!DOCTYPE html>
+<html>
+<head>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/styles/github-dark.min.css">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.9.0/highlight.min.js"><\/script>
+  <style>
+    body { margin: 0; background: #0d1117; }
+    pre { margin: 0; padding: 1.5rem; }
+    code { font-family: 'SF Mono', 'Fira Code', 'Consolas', monospace; font-size: 14px; line-height: 1.6; }
+  </style>
+</head>
+<body>
+  <pre><code class="${langClass}">${escaped}</code></pre>
+  <script>hljs.highlightAll();<\/script>
+</body>
+</html>`;
 }

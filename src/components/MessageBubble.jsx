@@ -2,8 +2,8 @@ import React, { useMemo } from 'react';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import rehypeHighlight from 'rehype-highlight';
-import { Copy, Check, User, Bot, FileText, Image, ExternalLink } from 'lucide-react';
-import { parseArtifacts, renderArtifactHtml } from '../utils/artifacts.js';
+import { Copy, Check, User, Bot, FileText, Image, ExternalLink, Download } from 'lucide-react';
+import { parseArtifacts, getTypeLabel, getFileExtension, isRenderable } from '../utils/artifacts.js';
 import 'highlight.js/styles/github-dark.css';
 
 export default function MessageBubble({ message, isStreaming, onArtifactClick }) {
@@ -104,6 +104,7 @@ export default function MessageBubble({ message, isStreaming, onArtifactClick })
 
 function CodeBlock({ children }) {
   const [copied, setCopied] = React.useState(false);
+  const [showRaw, setShowRaw] = React.useState(false);
 
   const code = React.useMemo(() => {
     const extractText = (node) => {
@@ -125,43 +126,81 @@ function CodeBlock({ children }) {
 
   return (
     <div className="relative group my-3">
-      <button
-        onClick={handleCopy}
-        className="absolute top-2 right-2 p-1.5 rounded-md bg-gray-700/80 text-gray-400 hover:text-white opacity-0 group-hover:opacity-100 transition-all"
-      >
-        {copied ? <Check size={14} /> : <Copy size={14} />}
-      </button>
-      <pre className="overflow-x-auto">{children}</pre>
+      <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-all">
+        <button
+          onClick={() => setShowRaw(!showRaw)}
+          className="px-2 py-1 rounded-md bg-gray-700/80 text-gray-400 hover:text-white text-xs"
+          title={showRaw ? 'Show highlighted' : 'Show raw'}
+        >
+          {showRaw ? 'Styled' : 'Raw'}
+        </button>
+        <button
+          onClick={handleCopy}
+          className="p-1.5 rounded-md bg-gray-700/80 text-gray-400 hover:text-white"
+        >
+          {copied ? <Check size={14} /> : <Copy size={14} />}
+        </button>
+      </div>
+      {showRaw ? (
+        <pre className="overflow-x-auto bg-[#1a1a2e] rounded-lg p-4 text-sm text-gray-300 font-mono whitespace-pre-wrap">
+          {code}
+        </pre>
+      ) : (
+        <pre className="overflow-x-auto">{children}</pre>
+      )}
     </div>
   );
 }
 
 function ArtifactCard({ artifact, onClick }) {
-  const typeLabels = {
-    html: 'HTML',
-    react: 'React',
-    svg: 'SVG',
-    mermaid: 'Diagram',
-    code: 'Code',
+  const label = getTypeLabel(artifact.type);
+  const renderable = isRenderable(artifact.type);
+
+  const handleDownload = (e) => {
+    e.stopPropagation();
+    const ext = getFileExtension(artifact.type);
+    const filename = artifact.title.includes('.')
+      ? artifact.title
+      : `${artifact.title.replace(/[^a-zA-Z0-9_-]/g, '_')}.${ext}`;
+    const blob = new Blob([artifact.content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename;
+    a.click();
+    URL.revokeObjectURL(url);
   };
 
   return (
-    <button
-      onClick={onClick}
-      className="my-3 w-full flex items-center gap-3 p-3 rounded-xl border border-chat-accent/30 bg-chat-accent/5 hover:bg-chat-accent/10 transition-colors text-left"
-    >
-      <div className="w-10 h-10 rounded-lg bg-chat-accent/20 flex items-center justify-center shrink-0">
-        <ExternalLink size={18} className="text-chat-accent-light" />
-      </div>
-      <div className="flex-1 min-w-0">
-        <div className="text-sm font-medium text-gray-200 truncate">
-          {artifact.title}
+    <div className="my-3 w-full flex items-center gap-3 p-3 rounded-xl border border-chat-accent/30 bg-chat-accent/5 text-left">
+      <button
+        onClick={onClick}
+        className="flex items-center gap-3 flex-1 min-w-0 hover:opacity-80 transition-opacity"
+      >
+        <div className="w-10 h-10 rounded-lg bg-chat-accent/20 flex items-center justify-center shrink-0">
+          {renderable ? (
+            <ExternalLink size={18} className="text-chat-accent-light" />
+          ) : (
+            <FileText size={18} className="text-chat-accent-light" />
+          )}
         </div>
-        <div className="text-xs text-gray-500">
-          {typeLabels[artifact.type] || artifact.type} artifact - Click to preview
+        <div className="flex-1 min-w-0">
+          <div className="text-sm font-medium text-gray-200 truncate">
+            {artifact.title}
+          </div>
+          <div className="text-xs text-gray-500">
+            {label} {renderable ? '- Click to preview' : '- Click to view'}
+          </div>
         </div>
-      </div>
-    </button>
+      </button>
+      <button
+        onClick={handleDownload}
+        className="p-2 rounded-lg hover:bg-chat-accent/20 text-gray-400 hover:text-chat-accent-light transition-colors shrink-0"
+        title="Download file"
+      >
+        <Download size={16} />
+      </button>
+    </div>
   );
 }
 

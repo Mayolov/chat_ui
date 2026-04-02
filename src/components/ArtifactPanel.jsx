@@ -1,10 +1,11 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { X, Copy, Check, Maximize2, Minimize2, Code, Eye, Download } from 'lucide-react';
-import { renderArtifactHtml } from '../utils/artifacts.js';
+import { renderArtifactHtml, getFileExtension, getTypeLabel, isRenderable } from '../utils/artifacts.js';
 
 export default function ArtifactPanel({ artifact, onClose }) {
   const iframeRef = useRef(null);
-  const [view, setView] = useState('preview'); // 'preview' | 'code'
+  const renderable = isRenderable(artifact.type);
+  const [view, setView] = useState('preview');
   const [copied, setCopied] = useState(false);
   const [isFullscreen, setIsFullscreen] = useState(false);
 
@@ -27,19 +28,15 @@ export default function ArtifactPanel({ artifact, onClose }) {
   };
 
   const handleDownload = () => {
-    const ext =
-      artifact.type === 'html'
-        ? 'html'
-        : artifact.type === 'svg'
-        ? 'svg'
-        : artifact.type === 'react'
-        ? 'jsx'
-        : 'txt';
-    const blob = new Blob([artifact.content], { type: 'text/plain' });
+    const ext = getFileExtension(artifact.type);
+    const filename = artifact.title.includes('.')
+      ? artifact.title
+      : `${artifact.title.replace(/[^a-zA-Z0-9_-]/g, '_')}.${ext}`;
+    const blob = new Blob([artifact.content], { type: 'text/plain;charset=utf-8' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `artifact.${ext}`;
+    a.download = filename;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -56,7 +53,9 @@ export default function ArtifactPanel({ artifact, onClose }) {
           <h3 className="text-sm font-medium text-gray-200 truncate">
             {artifact.title}
           </h3>
-          <span className="text-xs text-gray-500 uppercase">{artifact.type}</span>
+          <span className="text-xs text-gray-500 uppercase">
+            {getTypeLabel(artifact.type)}
+          </span>
         </div>
 
         {/* View toggle */}
@@ -96,7 +95,7 @@ export default function ArtifactPanel({ artifact, onClose }) {
         <button
           onClick={handleDownload}
           className="p-1.5 rounded-md hover:bg-chat-hover text-gray-400 hover:text-gray-200 transition-colors"
-          title="Download"
+          title="Download file"
         >
           <Download size={14} />
         </button>
@@ -121,7 +120,7 @@ export default function ArtifactPanel({ artifact, onClose }) {
         {view === 'preview' ? (
           <iframe
             ref={iframeRef}
-            className="w-full h-full bg-white"
+            className={`w-full h-full ${renderable ? 'bg-white' : 'bg-[#0d1117]'}`}
             sandbox="allow-scripts allow-same-origin"
             title="Artifact preview"
           />
